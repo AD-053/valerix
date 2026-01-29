@@ -25,9 +25,9 @@ spec:
         - name: NODE_ENV
           value: "production"
         - name: NEXT_PUBLIC_ORDER_API_URL
-          value: "http://api.valerix.example.com/order"
+          value: "http://129.212.198.73/api/orders"
         - name: NEXT_PUBLIC_INVENTORY_API_URL
-          value: "http://api.valerix.example.com/inventory"
+          value: "http://129.212.198.73/api/inventory"
         - name: NEXT_PUBLIC_ENABLE_GPT5
           value: "true"
         resources:

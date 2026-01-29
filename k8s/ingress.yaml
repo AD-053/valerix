@@ -8,27 +8,36 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: nginx
   rules:
   - http:
       paths:
       # Order Service API
-      - path: /order
+      - path: /api/orders
         pathType: Prefix
         backend:
           service:
             name: order-service
             port:
               number: 3001
-      # Inventory Service API
-      - path: /inventory
+      # Inventory Service API  
+      - path: /api/inventory
         pathType: Prefix
         backend:
           service:
             name: inventory-service
             port:
               number: 3002
+      # Health endpoints
+      - path: /health
+        pathType: Prefix
+        backend:
+          service:
+            name: order-service
+            port:
+              number: 3001
       # Frontend (must be last - catch all)
       - path: /
         pathType: Prefix
@@ -37,7 +46,3 @@ spec:
             name: frontend
             port:
               number: 3000
-  tls:
-  - hosts:
-    - valerix.example.com
-    secretName: valerix-tls
