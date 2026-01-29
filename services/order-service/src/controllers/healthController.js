@@ -21,6 +21,10 @@ const healthCheck = async (req, res) => {
       database: dbHealth.healthy ? 'up' : 'down',
       redis: redisHealth.healthy ? 'up' : 'down',
     },
+    details: {
+      database: dbHealth.details || {},
+      redis: redisHealth.details || {},
+    },
     features: {
       gpt_model: process.env.ENABLE_GPT5 === 'true' ? 'gpt-5' : undefined,
     },

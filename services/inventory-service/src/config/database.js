@@ -20,16 +20,42 @@ pool.on('connect', () => {
   logger.info('PostgreSQL connection established');
 });
 
-// Health check function
+// Health check function - verifies database connection AND table accessibility
 const checkDatabaseHealth = async () => {
   try {
-    const result = await pool.query('SELECT 1');
-    // Also check if inventory table exists
-    await pool.query('SELECT COUNT(*) FROM inventory LIMIT 1');
-    return { healthy: true };
+    // Check basic connectivity
+    await pool.query('SELECT 1');
+    
+    // Verify inventory table exists and is queryable
+    const tableCheck = await pool.query(
+      "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'inventory'"
+    );
+    
+    if (tableCheck.rows[0].count === '0') {
+      throw new Error('Inventory table does not exist');
+    }
+    
+    // Verify we can actually query the inventory table
+    const dataCheck = await pool.query('SELECT COUNT(*) FROM inventory LIMIT 1');
+    
+    return { 
+      healthy: true,
+      details: {
+        connection: 'ok',
+        inventory_table: 'accessible',
+        item_count: dataCheck.rows[0].count
+      }
+    };
   } catch (error) {
     logger.error('Database health check failed', { error: error.message });
-    return { healthy: false, error: error.message };
+    return { 
+      healthy: false, 
+      error: error.message,
+      details: {
+        connection: error.message.includes('connect') ? 'failed' : 'ok',
+        inventory_table: error.message.includes('inventory') ? 'not accessible' : 'unknown'
+      }
+    };
   }
 };
 

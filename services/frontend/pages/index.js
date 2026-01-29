@@ -14,9 +14,12 @@ import {
   FireIcon,
   BeakerIcon,
   ExclamationTriangleIcon,
+  HeartIcon,
 } from '@heroicons/react/24/outline';
 import Navbar from '../components/Navbar';
 import AuthModal from '../components/AuthModal';
+import ChaosControls from '../components/ChaosControls';
+import HealthDashboard from '../components/HealthDashboard';
 
 const products = [
   { id: 'ps5', name: 'PlayStation 5', price: 499, image: '🎮', color: 'from-blue-500 to-purple-600', description: 'Next-gen gaming console', stock: 50 },
@@ -236,6 +239,7 @@ export default function Home() {
           <Tab active={activeTab === 'products'} onClick={() => setActiveTab('products')} icon={<ShoppingBagIcon className="w-5 h-5" />}>Products</Tab>
           <Tab active={activeTab === 'orders'} onClick={() => setActiveTab('orders')} icon={<TruckIcon className="w-5 h-5" />}>Orders</Tab>
           <Tab active={activeTab === 'inventory'} onClick={() => setActiveTab('inventory')} icon={<CubeIcon className="w-5 h-5" />}>Inventory</Tab>
+          <Tab data-tab="health" active={activeTab === 'health'} onClick={() => setActiveTab('health')} icon={<HeartIcon className="w-5 h-5" />}>Health</Tab>
           <Tab active={activeTab === 'chaos'} onClick={() => setActiveTab('chaos')} icon={<FireIcon className="w-5 h-5" />}>Chaos Control</Tab>
         </div>
 
@@ -327,14 +331,15 @@ export default function Home() {
             </motion.div>
           )}
 
+          {activeTab === 'health' && (
+            <motion.div key="health" initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 50 }}>
+              <HealthDashboard />
+            </motion.div>
+          )}
+
           {activeTab === 'chaos' && (
             <motion.div key="chaos" initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 50 }}>
-              <ChaosControlPanel
-                chaosMode={chaosMode}
-                chaosIntensity={chaosIntensity}
-                onModeChange={handleChaosMode}
-                onIntensityChange={handleChaosIntensity}
-              />
+              <ChaosControls />
             </motion.div>
           )}
         </AnimatePresence>
@@ -352,10 +357,11 @@ export default function Home() {
   );
 }
 
-function Tab({ active, onClick, icon, children }) {
+function Tab({ active, onClick, icon, children, ...props }) {
   return (
     <button
       onClick={onClick}
+      {...props}
       className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all whitespace-nowrap ${
         active ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg' : 'text-gray-600 hover:bg-gray-100'
       }`}

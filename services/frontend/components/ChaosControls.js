@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
 export default function ChaosControls() {
@@ -11,6 +12,7 @@ export default function ChaosControls() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [currentConfig, setCurrentConfig] = useState(null);
+  const [isActive, setIsActive] = useState(false);
 
   useEffect(() => {
     fetchCurrentConfig();
@@ -22,6 +24,14 @@ export default function ChaosControls() {
         `${process.env.NEXT_PUBLIC_INVENTORY_API_URL}/api/admin/chaos`
       );
       setCurrentConfig(response.data.config);
+      
+      // Check if any chaos is active
+      const config = response.data.config;
+      setIsActive(
+        config.latency || 
+        config.crash_rate > 0 || 
+        config.partial_failure_rate > 0
+      );
     } catch (error) {
       console.error('Error fetching chaos config:', error);
     }
@@ -108,227 +118,381 @@ export default function ChaosControls() {
     },
   };
 
-  const applyPreset = (preset) => {
-    setChaosConfig(presets[preset]);
+  const applyPreset = async (preset) => {
+    const config = presets[preset];
+    setChaosConfig(config);
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_INVENTORY_API_URL}/api/admin/chaos`,
+        config
+      );
+
+      setMessage({
+        type: 'success',
+        text: `🔥 ${preset.charAt(0).toUpperCase() + preset.slice(1)} Chaos Applied!`,
+      });
+
+      fetchCurrentConfig();
+      
+      // Auto-hide message after 3 seconds
+      setTimeout(() => setMessage(null), 3000);
+    } catch (error) {
+      setMessage({
+        type: 'error',
+        text: 'Failed to apply preset',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Warning Banner */}
-      <div className="bg-red-50 border-l-4 border-red-500 p-4">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
+      {/* Animated Warning Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={`rounded-2xl p-6 text-white shadow-2xl transition-all ${
+          isActive 
+            ? 'bg-gradient-to-r from-red-600 via-orange-600 to-red-700 animate-pulse' 
+            : 'bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500'
+        }`}
+      >
+        <div className="flex items-center space-x-4">
+          <div className="text-6xl animate-bounce">
+            {isActive ? '💥' : '⚠️'}
           </div>
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-red-800">
-              Chaos Engineering Controls
-            </h3>
-            <p className="mt-1 text-sm text-red-700">
-              Use these controls to simulate real-world failures in the Inventory Service.
-              Perfect for demonstrating resilience patterns during presentations.
+          <div>
+            <h2 className="text-3xl font-black mb-1">
+              {isActive ? '🔥 CHAOS MODE ACTIVE' : '⚠️ Chaos Engineering Controls'}
+            </h2>
+            <p className="text-sm opacity-90">
+              {isActive 
+                ? 'System is under controlled failure conditions - Monitor Health Dashboard!'
+                : 'Simulate real-world failures to test system resilience'}
             </p>
           </div>
         </div>
-      </div>
+      </motion.div>
+
+      {/* Message Toast */}
+      <AnimatePresence>
+        {message && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className={`p-4 rounded-xl shadow-lg ${
+              message.type === 'success'
+                ? 'bg-green-500 text-white'
+                : 'bg-red-500 text-white'
+            }`}
+          >
+            <p className="text-lg font-bold text-center">{message.text}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Configuration Panel */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Configure Chaos</h2>
-
+        {/* Quick Presets - Featured */}
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="bg-white rounded-2xl shadow-xl p-8"
+        >
+          <h2 className="text-2xl font-black text-gray-900 mb-2">⚡ Quick Presets</h2>
+          <p className="text-gray-600 mb-6 text-sm">One-click chaos configurations for instant demo</p>
+          
           <div className="space-y-4">
-            {/* Latency Control */}
-            <div className="border-b border-gray-200 pb-4">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Introduce Latency
-                </label>
-                <input
-                  type="checkbox"
-                  checked={chaosConfig.latency}
-                  onChange={(e) => setChaosConfig({ ...chaosConfig, latency: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 rounded"
-                />
-              </div>
-              {chaosConfig.latency && (
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">
-                    Delay (ms): {chaosConfig.latency_ms}
-                  </label>
-                  <input
-                    type="range"
-                    min="1000"
-                    max="15000"
-                    step="1000"
-                    value={chaosConfig.latency_ms}
-                    onChange={(e) => setChaosConfig({ ...chaosConfig, latency_ms: parseInt(e.target.value) })}
-                    className="w-full"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Crash Rate Control */}
-            <div className="border-b border-gray-200 pb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Crash Rate: {(chaosConfig.crash_rate * 100).toFixed(0)}%
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={chaosConfig.crash_rate}
-                onChange={(e) => setChaosConfig({ ...chaosConfig, crash_rate: parseFloat(e.target.value) })}
-                className="w-full"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Probability of request failing with 500 error
-              </p>
-            </div>
-
-            {/* Partial Failure Rate Control */}
-            <div className="pb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Partial Failure Rate: {(chaosConfig.partial_failure_rate * 100).toFixed(0)}%
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={chaosConfig.partial_failure_rate}
-                onChange={(e) => setChaosConfig({ ...chaosConfig, partial_failure_rate: parseFloat(e.target.value) })}
-                className="w-full"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Schrödinger's Warehouse: DB commits but response fails
-              </p>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex space-x-3 pt-4">
-              <button
-                onClick={handleApply}
-                disabled={loading}
-                className={`flex-1 py-2 px-4 rounded-md font-medium text-white transition-colors ${
-                  loading ? 'bg-gray-400' : 'bg-red-600 hover:bg-red-700'
-                }`}
-              >
-                {loading ? 'Applying...' : 'Apply Chaos'}
-              </button>
-              <button
-                onClick={handleDisable}
-                disabled={loading}
-                className="flex-1 py-2 px-4 rounded-md font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 transition-colors"
-              >
-                Disable All
-              </button>
-            </div>
-          </div>
-
-          {message && (
-            <div
-              className={`mt-4 p-3 rounded-md ${
-                message.type === 'success'
-                  ? 'bg-green-50 text-green-800 border border-green-200'
-                  : 'bg-red-50 text-red-800 border border-red-200'
-              }`}
+            <motion.button
+              whileHover={{ scale: 1.02, x: 5 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => applyPreset('mild')}
+              disabled={loading}
+              className="w-full text-left p-5 border-3 rounded-xl transition-all bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-300 hover:border-yellow-500 hover:shadow-lg disabled:opacity-50"
             >
-              <p className="text-sm">{message.text}</p>
-            </div>
-          )}
-        </div>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg text-gray-900 mb-1">🟡 Mild Chaos</h3>
+                  <p className="text-sm text-gray-700">
+                    2s latency, 10% crash rate, 5% partial failures
+                  </p>
+                </div>
+                <div className="text-3xl ml-4">→</div>
+              </div>
+            </motion.button>
 
-        {/* Presets & Current Status */}
-        <div className="space-y-6">
-          {/* Presets */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Presets</h2>
-            
-            <div className="space-y-3">
-              <button
-                onClick={() => applyPreset('mild')}
-                className="w-full text-left p-4 border-2 border-gray-200 rounded-lg hover:border-yellow-400 transition-colors"
-              >
-                <h3 className="font-semibold text-gray-900">🟡 Mild Chaos</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  2s latency, 10% crash rate, 5% partial failures
-                </p>
-              </button>
+            <motion.button
+              whileHover={{ scale: 1.02, x: 5 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => applyPreset('moderate')}
+              disabled={loading}
+              className="w-full text-left p-5 border-3 rounded-xl transition-all bg-gradient-to-r from-orange-50 to-orange-100 border-orange-300 hover:border-orange-500 hover:shadow-lg disabled:opacity-50"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg text-gray-900 mb-1">🟠 Moderate Chaos</h3>
+                  <p className="text-sm text-gray-700">
+                    5s latency, 30% crash rate, 20% partial failures
+                  </p>
+                </div>
+                <div className="text-3xl ml-4">→</div>
+              </div>
+            </motion.button>
 
-              <button
-                onClick={() => applyPreset('moderate')}
-                className="w-full text-left p-4 border-2 border-gray-200 rounded-lg hover:border-orange-400 transition-colors"
-              >
-                <h3 className="font-semibold text-gray-900">🟠 Moderate Chaos</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  5s latency, 30% crash rate, 20% partial failures
-                </p>
-              </button>
-
-              <button
-                onClick={() => applyPreset('extreme')}
-                className="w-full text-left p-4 border-2 border-gray-200 rounded-lg hover:border-red-400 transition-colors"
-              >
-                <h3 className="font-semibold text-gray-900">🔴 Extreme Chaos</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  10s latency, 50% crash rate, 30% partial failures
-                </p>
-              </button>
-            </div>
+            <motion.button
+              whileHover={{ scale: 1.02, x: 5 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => applyPreset('extreme')}
+              disabled={loading}
+              className="w-full text-left p-5 border-3 rounded-xl transition-all bg-gradient-to-r from-red-50 to-red-100 border-red-300 hover:border-red-500 hover:shadow-lg disabled:opacity-50"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h3 className="font-bold text-lg text-gray-900 mb-1">🔴 Extreme Chaos</h3>
+                  <p className="text-sm text-gray-700">
+                    10s latency, 50% crash rate, 30% partial failures
+                  </p>
+                </div>
+                <div className="text-3xl ml-4">→</div>
+              </div>
+            </motion.button>
           </div>
 
-          {/* Current Status */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Current Status</h2>
+          {/* Disable Button */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleDisable}
+            disabled={loading}
+            className="w-full mt-6 py-4 px-6 rounded-xl font-bold text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? '⏳ Processing...' : '✅ Disable All Chaos'}
+          </motion.button>
+        </motion.div>
+
+        {/* Current Status */}
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="space-y-6"
+        >
+          {/* Live Status Card */}
+          <div className={`rounded-2xl shadow-xl p-8 transition-all ${
+            isActive 
+              ? 'bg-gradient-to-br from-red-500 to-pink-600 text-white' 
+              : 'bg-gradient-to-br from-green-500 to-emerald-600 text-white'
+          }`}>
+            <h2 className="text-2xl font-black mb-6 flex items-center">
+              <span className={`w-4 h-4 rounded-full mr-3 animate-pulse ${
+                isActive ? 'bg-yellow-300' : 'bg-green-300'
+              }`}></span>
+              Current Status
+            </h2>
             
             {currentConfig ? (
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Latency:</span>
-                  <span className="font-semibold">
-                    {currentConfig.latency ? `${currentConfig.latency_ms}ms` : 'Disabled'}
-                  </span>
+              <div className="space-y-4">
+                <div className="bg-white bg-opacity-20 rounded-xl p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold">Latency:</span>
+                    <span className="text-2xl font-black">
+                      {currentConfig.latency ? `${currentConfig.latency_ms}ms` : 'Disabled'}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Crash Rate:</span>
-                  <span className="font-semibold">
-                    {(currentConfig.crash_rate * 100).toFixed(0)}%
-                  </span>
+                <div className="bg-white bg-opacity-20 rounded-xl p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold">Crash Rate:</span>
+                    <span className="text-2xl font-black">
+                      {(currentConfig.crash_rate * 100).toFixed(0)}%
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Partial Failure:</span>
-                  <span className="font-semibold">
-                    {(currentConfig.partial_failure_rate * 100).toFixed(0)}%
-                  </span>
+                <div className="bg-white bg-opacity-20 rounded-xl p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold">Partial Failure:</span>
+                    <span className="text-2xl font-black">
+                      {(currentConfig.partial_failure_rate * 100).toFixed(0)}%
+                    </span>
+                  </div>
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-gray-500">Loading configuration...</p>
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
+                <p className="mt-4">Loading configuration...</p>
+              </div>
             )}
           </div>
-        </div>
+
+          {/* Health Dashboard Link */}
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl shadow-xl p-6 text-white cursor-pointer"
+            onClick={() => {
+              const healthTab = document.querySelector('[data-tab="health"]');
+              if (healthTab) healthTab.click();
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold mb-1">📊 Health Dashboard</h3>
+                <p className="text-sm opacity-90">Monitor system health in real-time</p>
+              </div>
+              <div className="text-4xl">→</div>
+            </div>
+          </motion.div>
+        </motion.div>
       </div>
 
-      {/* Demo Instructions */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-blue-900 mb-3">
-          💡 Presentation Demo Flow
-        </h3>
-        <ol className="list-decimal list-inside space-y-2 text-sm text-blue-800">
-          <li>Open the Health dashboard in a separate screen/split view</li>
-          <li>Show normal operations (green status, fast response times)</li>
-          <li>Apply "Moderate Chaos" preset</li>
-          <li>Watch the Health dashboard turn RED (latency spike)</li>
-          <li>Create orders on the Orders tab - they still work!</li>
-          <li>Show the circuit breaker fallback messages</li>
-          <li>Disable chaos - watch system recover (GREEN)</li>
-        </ol>
-      </div>
+      {/* Advanced Configuration (Collapsible) */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+        className="bg-white rounded-2xl shadow-xl p-8"
+      >
+        <h2 className="text-2xl font-black text-gray-900 mb-6">⚙️ Advanced Configuration</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Latency Control */}
+          <div className="border-2 border-gray-200 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <label className="text-lg font-bold text-gray-900">
+                🐌 Latency
+              </label>
+              <input
+                type="checkbox"
+                checked={chaosConfig.latency}
+                onChange={(e) => setChaosConfig({ ...chaosConfig, latency: e.target.checked })}
+                className="h-6 w-6 text-blue-600 rounded"
+              />
+            </div>
+            {chaosConfig.latency && (
+              <div>
+                <label className="block text-sm text-gray-600 mb-2">
+                  Delay: {chaosConfig.latency_ms}ms
+                </label>
+                <input
+                  type="range"
+                  min="1000"
+                  max="15000"
+                  step="1000"
+                  value={chaosConfig.latency_ms}
+                  onChange={(e) => setChaosConfig({ ...chaosConfig, latency_ms: parseInt(e.target.value) })}
+                  className="w-full h-3 bg-gradient-to-r from-green-200 to-red-500 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Crash Rate Control */}
+          <div className="border-2 border-gray-200 rounded-xl p-5">
+            <label className="block text-lg font-bold text-gray-900 mb-4">
+              💥 Crash Rate: {(chaosConfig.crash_rate * 100).toFixed(0)}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={chaosConfig.crash_rate}
+              onChange={(e) => setChaosConfig({ ...chaosConfig, crash_rate: parseFloat(e.target.value) })}
+              className="w-full h-3 bg-gradient-to-r from-green-200 to-red-500 rounded-lg appearance-none cursor-pointer"
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Probability of 500 errors
+            </p>
+          </div>
+
+          {/* Partial Failure Rate Control */}
+          <div className="border-2 border-gray-200 rounded-xl p-5">
+            <label className="block text-lg font-bold text-gray-900 mb-4">
+              🎭 Partial: {(chaosConfig.partial_failure_rate * 100).toFixed(0)}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={chaosConfig.partial_failure_rate}
+              onChange={(e) => setChaosConfig({ ...chaosConfig, partial_failure_rate: parseFloat(e.target.value) })}
+              className="w-full h-3 bg-gradient-to-r from-green-200 to-red-500 rounded-lg appearance-none cursor-pointer"
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Schrödinger's Warehouse
+            </p>
+          </div>
+        </div>
+
+        {/* Apply Custom Button */}
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={handleApply}
+          disabled={loading}
+          className="w-full mt-6 py-4 px-6 rounded-xl font-bold text-white bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? '⏳ Applying Configuration...' : '🔥 Apply Custom Configuration'}
+        </motion.button>
+      </motion.div>
+
+      {/* Enhanced Demo Instructions */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-2xl p-8 shadow-lg"
+      >
+        <div className="flex items-start space-x-4">
+          <div className="text-5xl">💡</div>
+          <div className="flex-1">
+            <h3 className="text-2xl font-black text-blue-900 mb-4">
+              Presentation Demo Flow
+            </h3>
+            <ol className="space-y-3 text-base text-blue-900">
+              <li className="flex items-start">
+                <span className="font-black mr-3 text-xl">1.</span>
+                <span>Open the <strong>Health Dashboard</strong> tab (or split view for side-by-side comparison)</span>
+              </li>
+              <li className="flex items-start">
+                <span className="font-black mr-3 text-xl">2.</span>
+                <span>Show <span className="text-green-600 font-bold">normal operations</span> - green status indicators, fast response times (~50ms)</span>
+              </li>
+              <li className="flex items-start">
+                <span className="font-black mr-3 text-xl">3.</span>
+                <span>Click <strong>"🟠 Moderate Chaos"</strong> preset button above</span>
+              </li>
+              <li className="flex items-start">
+                <span className="font-black mr-3 text-xl">4.</span>
+                <span>Watch the Health Dashboard turn <span className="text-red-600 font-bold">RED</span> with latency spikes (5000ms)</span>
+              </li>
+              <li className="flex items-start">
+                <span className="font-black mr-3 text-xl">5.</span>
+                <span>Go to <strong>Orders tab</strong> and create orders - they <strong>still work</strong> thanks to circuit breakers!</span>
+              </li>
+              <li className="flex items-start">
+                <span className="font-black mr-3 text-xl">6.</span>
+                <span>Show the <strong>circuit breaker fallback messages</strong> and cached responses</span>
+              </li>
+              <li className="flex items-start">
+                <span className="font-black mr-3 text-xl">7.</span>
+                <span>Click <strong>"✅ Disable All Chaos"</strong> - watch system recover to <span className="text-green-600 font-bold">GREEN</span></span>
+              </li>
+            </ol>
+            
+            <div className="mt-6 p-4 bg-white rounded-xl border-2 border-blue-200">
+              <p className="text-sm text-blue-800">
+                <strong>💡 Pro Tip:</strong> During the demo, emphasize how the system remains functional even under extreme conditions.
+                This showcases microservices resilience patterns: circuit breakers, fallbacks, and graceful degradation.
+              </p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
