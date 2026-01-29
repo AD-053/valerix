@@ -9,6 +9,8 @@ on:
 env:
   REGISTRY: registry.digitalocean.com/valerix
   DO_REGION: nyc1
+  # Set to 'true' to deploy to Kubernetes, 'false' to only build images
+  ENABLE_DEPLOYMENT: false
 
 jobs:
   build-and-push:
@@ -66,7 +68,8 @@ jobs:
     name: Deploy to Kubernetes
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: github.ref == 'refs/heads/main'
+    # Only deploy if explicitly enabled AND on main branch
+    if: github.ref == 'refs/heads/main' && env.ENABLE_DEPLOYMENT == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -114,7 +117,8 @@ jobs:
   chaos-test:
     name: Run Chaos Tests
     runs-on: ubuntu-latest
-    needs: deploy
+    # Only run chaos tests if deployment is enabled AND on main branch
+    if: github.ref == 'refs/heads/main' && env.ENABLE_DEPLOYMENT == 'true
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
