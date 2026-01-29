@@ -28,6 +28,8 @@ spec:
           value: "http://api.valerix.example.com/order"
         - name: NEXT_PUBLIC_INVENTORY_API_URL
           value: "http://api.valerix.example.com/inventory"
+        - name: NEXT_PUBLIC_ENABLE_GPT5
+          value: "true"
         resources:
           requests:
             memory: "256Mi"

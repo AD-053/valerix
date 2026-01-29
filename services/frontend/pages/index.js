@@ -46,6 +46,7 @@ export default function Home() {
   const [chaosMode, setChaosMode] = useState('none');
   const [chaosIntensity, setChaosIntensity] = useState(0);
   const [loading, setLoading] = useState(false);
+  const gptEnabled = (process.env.NEXT_PUBLIC_ENABLE_GPT5 === 'true');
 
   useEffect(() => {
     fetchOrders();
@@ -68,7 +69,7 @@ export default function Home() {
   const fetchInventory = async () => {
     try {
       const response = await axios.get(`${INVENTORY_API}/api/inventory`);
-      setInventory(response.data || []);
+      setInventory(response.data.items || []);
     } catch (error) {
       console.error('Error fetching inventory:', error);
       setInventory(products.map(p => ({ product_id: p.id, quantity: p.stock, location: 'Main-Warehouse' })));
@@ -80,9 +81,8 @@ export default function Home() {
     setLoading(true);
     
     const orderData = {
-      product_id: selectedProduct,
+      item_id: selectedProduct,
       quantity: quantity,
-      user_id: 'demo-user-' + Date.now(),
     };
 
     try {
@@ -91,7 +91,7 @@ export default function Home() {
       const response = await axios.post(`${ORDER_API}/api/orders`, orderData, {
         headers: {
           'Content-Type': 'application/json',
-          'Idempotency-Key': `order-${Date.now()}-${Math.random()}`,
+          'Idempotency-Key': `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
         },
       });
 
@@ -140,7 +140,7 @@ export default function Home() {
     setChaosMode(mode);
     
     try {
-      await axios.post(`${ORDER_API}/chaos/mode`, { mode });
+      await axios.post(`${ORDER_API}/api/admin/chaos`, { mode });
       
       toast.success(`🔥 Chaos mode: ${mode.toUpperCase()}`, {
         position: "bottom-right",
@@ -155,7 +155,7 @@ export default function Home() {
     setChaosIntensity(intensity);
     
     try {
-      await axios.post(`${ORDER_API}/chaos/config`, { failureRate: intensity });
+      await axios.post(`${ORDER_API}/api/admin/chaos`, { failureRate: intensity / 100 });
       
       toast.info(`⚡ Chaos intensity: ${intensity}%`, {
         position: "bottom-right",
@@ -173,6 +173,15 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50 to-pink-50">
       <Navbar onAuthClick={openAuth} />
+      {gptEnabled && (
+        <div className="mx-auto max-w-7xl px-4 mt-4">
+          <div className="flex items-center justify-center">
+            <span className="inline-flex items-center gap-2 rounded-full bg-indigo-100 text-indigo-700 px-4 py-2 text-sm font-medium shadow">
+              <BoltIcon className="h-4 w-4" /> GPT-5 Enabled for all clients
+            </span>
+          </div>
+        </div>
+      )}
       <ToastContainer />
       
       <AuthModal
@@ -312,7 +321,7 @@ export default function Home() {
             <motion.div key="inventory" initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 50 }}>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {inventory.map((item, index) => (
-                  <InventoryCard key={item.product_id} item={item} index={index} products={products} />
+                  <InventoryCard key={item.item_id} item={item} index={index} products={products} />
                 ))}
               </div>
             </motion.div>
@@ -413,7 +422,7 @@ function OrderCard({ order, index, products }) {
 }
 
 function InventoryCard({ item, index, products }) {
-  const product = products.find(p => p.id === item.product_id);
+  const product = products.find(p => p.id === item.item_id);
   const stockLevel = item.quantity > 50 ? 'high' : item.quantity > 20 ? 'medium' : 'low';
   
   return (
@@ -425,7 +434,7 @@ function InventoryCard({ item, index, products }) {
       className="bg-white rounded-2xl shadow-lg p-6"
     >
       <div className="text-5xl mb-4">{product?.image || '📦'}</div>
-      <h3 className="font-bold text-lg mb-2">{product?.name || item.product_id}</h3>
+      <h3 className="font-bold text-lg mb-2">{item.item_name || product?.name || item.item_id}</h3>
       <div className="space-y-2">
         <div className="flex justify-between">
           <span className="text-gray-600">Stock:</span>
@@ -433,10 +442,12 @@ function InventoryCard({ item, index, products }) {
             stockLevel === 'high' ? 'text-green-600' : stockLevel === 'medium' ? 'text-yellow-600' : 'text-red-600'
           }`}>{item.quantity} units</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-gray-600">Location:</span>
-          <span className="font-semibold">{item.location}</span>
-        </div>
+        {item.reserved_quantity > 0 && (
+          <div className="flex justify-between">
+            <span className="text-gray-600">Reserved:</span>
+            <span className="font-semibold text-orange-600">{item.reserved_quantity} units</span>
+          </div>
+        )}
       </div>
     </motion.div>
   );

@@ -52,6 +52,8 @@ spec:
           value: "6379"
         - name: INVENTORY_SERVICE_URL
           value: "http://inventory-service.valerix.svc.cluster.local:3002"
+        - name: ENABLE_GPT5
+          value: "true"
         resources:
           requests:
             memory: "256Mi"

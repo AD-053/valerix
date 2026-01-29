@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS orders (
     item_id VARCHAR(100) NOT NULL,
     quantity INTEGER NOT NULL,
     status VARCHAR(50) DEFAULT 'pending',
-    idempotency_key VARCHAR(36) UNIQUE NOT NULL,
+    idempotency_key VARCHAR(100) UNIQUE NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

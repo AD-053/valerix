@@ -94,16 +94,12 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       NEXT_PUBLIC_ORDER_API_URL: http://localhost:3001
       NEXT_PUBLIC_INVENTORY_API_URL: http://localhost:3002
     depends_on:
       - order-service
       - inventory-service
-    volumes:
-      - ./services/frontend:/app
-      - /app/node_modules
-      - /app/.next
 
 volumes:
   postgres_data:
